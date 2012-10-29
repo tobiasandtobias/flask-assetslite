@@ -1,7 +1,7 @@
 import pipes
 import hashlib
 from glob import glob
-from util import listify
+from utils import listify
 from flask import current_app
 from os.path import getmtime, join, realpath, isfile
 from cStringIO import StringIO
