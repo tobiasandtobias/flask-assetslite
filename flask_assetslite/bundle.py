@@ -17,7 +17,7 @@ class Bundle(object):
     If an output filename is specified through the `output` parameter,
     the bundle will write its contents to the file each build.
     """
-    def __init__(self, contents, output=None, filters=[], static_folder=None, static_url_path=None, debug=None):
+    def __init__(self, contents, output=None, filters=[], static_folder='', static_url_path='', debug=None):
         self.filters = filters if type(filters) is list else [filters]
 
         self._output = output
@@ -38,7 +38,7 @@ class Bundle(object):
 
         for source in sources:
             # Glob pattern, so expand into files
-            if '*' in source:
+            if isinstance(source, str) and '*' in source:
                 contents.extend(self._resolve_sources(glob(join(self.static_folder, source))))
             # Nested bundles are cool
             elif type(source) is Bundle:
