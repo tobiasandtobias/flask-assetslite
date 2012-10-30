@@ -1,4 +1,6 @@
+.coverage
 .DS_Store
 .pyc
 .venv
 docs/_build
+Flask_AssetsLite.egg-info
