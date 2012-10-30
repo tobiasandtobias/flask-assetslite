@@ -17,8 +17,10 @@ class Bundle(object):
     If an output filename is specified through the `output` parameter,
     the bundle will write its contents to the file each build.
     """
-    def __init__(self, contents, output=None, filters=[], static_folder='', static_url_path='', debug=None):
+    def __init__(self, contents, output=None, filters=[], static_folder='', static_url_path='', debug=None, build=True):
         self.filters = filters if type(filters) is list else [filters]
+
+        self.build = build
 
         self._output = output
         self._contents = contents
@@ -178,12 +180,15 @@ class Bundle(object):
         m.update(data)
         return m.hexdigest()[:8]
 
-    def build(self):
+    def build_bundle(self):
         """
         Trigger a build for this bundle. A build reads all source data,
         combines it, runs any filters over it, outputs it to a file (if
         one has been specified) and then returns a file-like handle.
         """
+        if not self.build:
+            return None
+
         # Read in all source data
         self.read()
 
@@ -208,8 +213,9 @@ class Bundle(object):
         for source in self.contents:
             if type(source) is Bundle:
                 # Bundle; get contents
-                handle = source.build()
-                data.write(handle.read())
+                handle = source.build_bundle()
+                if handle:
+                    data.write(handle.read())
             else:
                 # File; open and read it
                 f = open(source, 'r')

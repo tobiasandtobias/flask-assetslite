@@ -50,7 +50,7 @@ class TestBundle(object):
             unlink(self.bundle.output_filename)
 
         # Bundle must first be built so an output file exists.
-        self.bundle.build()
+        self.bundle.build_bundle()
 
         # Clean up output file
         assert_equal(self.bundle.urls(debug=False), ['/tests/test.7ca3f3a5.min.css'])
@@ -74,7 +74,7 @@ class TestBundle(object):
         bundle = Bundle(['tests/test01.css', 'tests/test02.css'], filters=rot13)
 
         # Call bundle build, which returns a StringIO handle
-        data = bundle.build()
+        data = bundle.build_bundle()
 
         # Check md5 hash
         h = hashlib.md5()
@@ -93,7 +93,15 @@ class TestBundle(object):
         # Even though working directory is the top-level, setting
         # static_folder should make all paths relative to './tests'.
         bundle = Bundle(['test01.css', 'test02.css'], output='_test.css', static_folder='tests')
-        bundle.build()
+        bundle.build_bundle()
         # Check file is in the right spot.
         ok_(isfile('tests/_test.css'))
         unlink('tests/_test.css')
+
+    def test_nobuild(self):
+        """
+        Bundles with build=False not included in production.
+        """
+        bundle = Bundle(['tests/test01.css', Bundle('tests/test02.css', build=False)])
+        data = bundle.build_bundle().getvalue()
+        ok_('color: blue' not in data)
