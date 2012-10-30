@@ -157,14 +157,14 @@ class Bundle(object):
 
     @property
     def static_folder(self):
-        if current_app and self._static_folder is None:
+        if current_app and not self._static_folder:
             return current_app.static_folder
         else:
             return self._static_folder
 
     @property
     def static_url_path(self):
-        if current_app and self._static_url_path is None:
+        if current_app and not self._static_url_path:
             return current_app.static_url_path
         else:
             return self._static_url_path
