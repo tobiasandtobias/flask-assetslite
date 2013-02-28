@@ -1,5 +1,7 @@
+import json
 import pipes
 import hashlib
+from os import stat
 from glob import glob
 from utils import listify
 from flask import current_app
@@ -17,11 +19,16 @@ class Bundle(object):
     If an output filename is specified through the `output` parameter,
     the bundle will write its contents to the file each build.
     """
-    def __init__(self, contents, output=None, filters=[], static_folder='', static_url_path='', debug=None):
+    def __init__(self, contents, output=None, filters=[], static_folder='',
+                 static_url_path='', debug=None, build=True, cache_file=''):
+
         self.filters = filters if type(filters) is list else [filters]
+
+        self.build = build
 
         self._output = output
         self._contents = contents
+        self._cache_file = cache_file
 
         self._debug = debug
         self._static_folder = static_folder
@@ -53,6 +60,41 @@ class Bundle(object):
                 raise Exception('Cannot find file \'%s\'' % source)
 
         return contents
+
+    @property
+    def _unchanged(self):
+        """
+        Returns True if we can verify (via cache) if this bundle can avoid
+        regeneration. It does this by checking the last modified timestamps of
+        the resolved source files.
+        """
+        print '[cache] file %s ' % self._cache_file
+        if not isfile(self._cache_file):
+            print '[cache] file not found'
+            return False
+
+        try:
+            # Attempt to parse JSON file
+            file = open(self._cache_file)
+            data = json.load(file)
+            files = data.keys()
+        except Exception, e:
+            print '[cache] ERROR: Unable to load and parse JSON file %s' % e
+            return False
+
+        # Check each file with the mtime from the cache
+        for file in self.sources:
+            file = join(self.static_folder, file)
+            if file not in files:
+                return False
+            try:
+                if stat(file).st_mtime > data[file]['mtime']:
+                    return False
+            except Exception, e:
+                print '[cache] ERROR: error checking mtime: %s' % e
+                return False
+
+        return True
 
     def _urlize_paths(self, paths):
         """
@@ -178,20 +220,42 @@ class Bundle(object):
         m.update(data)
         return m.hexdigest()[:8]
 
-    def build(self):
+    def build_bundle(self):
         """
         Trigger a build for this bundle. A build reads all source data,
         combines it, runs any filters over it, outputs it to a file (if
         one has been specified) and then returns a file-like handle.
         """
+        if not self.build:
+            return None
+
+        if self._unchanged:
+            print 'Skipping build, source files unchanged...'
+            return None
+
+        print 'Building bundle, woot!'
+
         # Read in all source data
+        print 'Reading data from source files...'
         self.read()
 
         # Run filters
+        print 'Running filters...'
         self.run_filters()
 
         # Write output file
+        print 'Writing output file, if there is one...'
         self.write()
+
+        # Cache last modified of source files
+        if self._cache_file:
+            print '[cache] saving timestamps'
+            data = {}
+            for file in self.sources:
+                file = join(self.static_folder, file)
+                data[file] = {'mtime': stat(file).st_mtime}
+            with open(self._cache_file, 'w+') as cache_file:
+                json.dump(data, cache_file)
 
         # Return data handle
         self.data.seek(0)
@@ -208,8 +272,9 @@ class Bundle(object):
         for source in self.contents:
             if type(source) is Bundle:
                 # Bundle; get contents
-                handle = source.build()
-                data.write(handle.read())
+                handle = source.build_bundle()
+                if handle:
+                    data.write(handle.read())
             else:
                 # File; open and read it
                 f = open(source, 'r')
@@ -236,12 +301,14 @@ class Bundle(object):
                     pipe.append(*step)
 
             # Write data through the pipe
+            print '[filters] Writing data through pipe into tmpfile...'
             w = pipe.open(tmpfile.name, 'w')
             self.data.seek(0)
             w.write(self.data.read())
             w.close()
 
             # Read tmpfile back in
+            print '[filters] Reading tmpfile...'
             tmpfile.seek(0)
             self.data.truncate(0)
             self.data.write(tmpfile.read())

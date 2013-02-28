@@ -11,7 +11,7 @@ class Assets(dict):
         Build all registered bundles.
         """
         for name, bundle in self.iteritems():
-            bundle.build()
+            bundle.build_bundle()
 
     def init_app(self, app):
         """
