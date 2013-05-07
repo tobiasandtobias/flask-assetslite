@@ -68,14 +68,14 @@ class Bundle(object):
         regeneration. It does this by checking the last modified timestamps of
         the resolved source files.
         """
-        print '[cache] file %s ' % self._cache_file
-        if not isfile(self._cache_file):
+        print '[cache] file %s ' % self.cache_file
+        if not isfile(self.cache_file):
             print '[cache] file not found'
             return False
 
         try:
             # Attempt to parse JSON file
-            file = open(self._cache_file)
+            file = open(self.cache_file)
             data = json.load(file)
             files = data.keys()
         except Exception, e:
@@ -211,6 +211,13 @@ class Bundle(object):
         else:
             return self._static_url_path
 
+    @property
+    def cache_file(self):
+        if self._cache_file:
+            return join(self.static_folder, self._cache_file)
+        else:
+            return ''
+
     @classmethod
     def hash(self, data):
         """
@@ -248,13 +255,13 @@ class Bundle(object):
         self.write()
 
         # Cache last modified of source files
-        if self._cache_file:
+        if self.cache_file:
             print '[cache] saving timestamps'
             data = {}
             for file in self.sources:
                 file = join(self.static_folder, file)
                 data[file] = {'mtime': stat(file).st_mtime}
-            with open(self._cache_file, 'w+') as cache_file:
+            with open(self.cache_file, 'w+') as cache_file:
                 json.dump(data, cache_file)
 
         # Return data handle
